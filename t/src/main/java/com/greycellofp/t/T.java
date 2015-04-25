@@ -8,6 +8,7 @@ import android.util.Log;
 
 import com.greycellofp.t.core.Constants;
 import com.greycellofp.t.utils.BitHack;
+import com.greycellofp.t.utils.Calibrate;
 import com.greycellofp.t.utils.ToneGenerator;
 import com.greycellofp.t.utils.fft.FFT;
 
@@ -21,6 +22,7 @@ public class T {
     private ToneGenerator toneGenerator;
     private Handler handler;
     private FFT fft;
+    private Calibrate calibrate;
     
     private short[] buffer;
     private float[] fftRealArray;
@@ -41,6 +43,7 @@ public class T {
                 AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
         buffer = new short[bufferSize];
 
+        calibrate = new Calibrate();
         toneGenerator = ToneGenerator.construct()
                 .withFrequencyOfTone(Constants.PRELIM_FREQ)
                 .withDuration(5)
@@ -140,6 +143,7 @@ public class T {
         int rightBandwidth = bandwidths[Constants.RIGHT_BW];
 
         Log.d(TAG, "left-bw:" + leftBandwidth + " right-bw:" + rightBandwidth);
+        calibrate.calibrate(maxVolRatio, leftBandwidth, rightBandwidth);
         if (continueReading) {
             handler.post(new Runnable() {
                 @Override
