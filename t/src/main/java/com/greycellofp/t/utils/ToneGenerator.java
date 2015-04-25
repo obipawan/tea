@@ -3,11 +3,14 @@ package com.greycellofp.t.utils;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
+import android.util.Log;
 
 /**
  * Created by pawan.kumar1 on 25/04/15.
  */
 public class ToneGenerator {
+    private static final String TAG = ToneGenerator.class.getSimpleName();
+    
     private AudioTrack audioTrack;
     private int duration;
     private int numSamples;
@@ -46,6 +49,11 @@ public class ToneGenerator {
                 sampleRate, AudioFormat.CHANNEL_OUT_MONO,
                 AudioFormat.ENCODING_PCM_16BIT, generatedSound.length,
                 AudioTrack.MODE_STREAM);
+
+        genTone();
+
+        Log.d(TAG, "" + audioTrack.write(generatedSound, 0, generatedSound.length));
+        audioTrack.setLoopPoints(0, generatedSound.length / 4, -1);
         return this;
     }
 

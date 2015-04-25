@@ -1,5 +1,6 @@
 package com.greycellofp.tdemo;
 
+import android.support.annotation.Nullable;
 import android.support.v7.app.ActionBarActivity;
 import android.support.v7.app.ActionBar;
 import android.support.v4.app.Fragment;
@@ -10,6 +11,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.os.Build;
+
+import com.greycellofp.t.T;
 
 
 public class MainActivity extends ActionBarActivity {
@@ -52,8 +55,11 @@ public class MainActivity extends ActionBarActivity {
      * A placeholder fragment containing a simple view.
      */
     public static class PlaceholderFragment extends Fragment {
-
+        private static final String TAG = PlaceholderFragment.class.getSimpleName();
+        
+        T t;
         public PlaceholderFragment() {
+            t = new T();
         }
 
         @Override
@@ -61,6 +67,18 @@ public class MainActivity extends ActionBarActivity {
                                  Bundle savedInstanceState) {
             View rootView = inflater.inflate(R.layout.fragment_main, container, false);
             return rootView;
+        }
+
+        @Override
+        public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
+            super.onViewCreated(view, savedInstanceState);
+            t.start();
+        }
+
+        @Override
+        public void onPause() {
+            super.onPause();
+            t.pause();
         }
     }
 }
