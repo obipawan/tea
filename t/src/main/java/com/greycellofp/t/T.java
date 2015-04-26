@@ -11,6 +11,7 @@ import com.greycellofp.t.utils.BitHack;
 import com.greycellofp.t.utils.Calibrate;
 import com.greycellofp.t.utils.ToneGenerator;
 import com.greycellofp.t.utils.fft.FFT;
+import static java.lang.Math.signum;
 
 /**
  * Created by pawan.kumar1 on 25/04/15.
@@ -23,6 +24,8 @@ public class T {
     private Handler handler;
     private FFT fft;
     private Calibrate calibrate;
+    private GestureListener gestureListener;
+    private RawBWListener rawBWListener;
     
     private short[] buffer;
     private float[] fftRealArray;
@@ -36,7 +39,12 @@ public class T {
     private int freqIndex;
 
     private boolean continueReading;
-    
+
+    private int previousDirection = 0;
+    private int directionChanges;
+    private int cyclesToRefresh;
+    private int cyclesLeftToRead = -1;
+
     public T() {
         handler = new Handler();
         bufferSize = AudioRecord.getMinBufferSize(Constants.SAMPLE_RATE, 
@@ -105,6 +113,22 @@ public class T {
         }
     }
 
+    public GestureListener getGestureListener() {
+        return gestureListener;
+    }
+
+    public void setGestureListener(GestureListener gestureListener) {
+        this.gestureListener = gestureListener;
+    }
+
+    public RawBWListener getRawBWListener() {
+        return rawBWListener;
+    }
+
+    public void setRawBWListener(RawBWListener rawBWListener) {
+        this.rawBWListener = rawBWListener;
+    }
+
     private void readAndFFT() {
         if (fft.specSize() != 0 && oldFreq == null) {
             oldFreq = new float[fft.specSize()];
@@ -143,6 +167,14 @@ public class T {
         int rightBandwidth = bandwidths[Constants.RIGHT_BW];
 
         Log.d(TAG, "left-bw:" + leftBandwidth + " right-bw:" + rightBandwidth);
+        
+        if(rawBWListener != null){
+            rawBWListener.onBandWidth(leftBandwidth, rightBandwidth);
+        }
+        
+        if(gestureListener != null){
+            applyGesture(leftBandwidth, rightBandwidth);
+        }
         calibrate.calibrate(maxVolRatio, leftBandwidth, rightBandwidth);
         if (continueReading) {
             handler.post(new Runnable() {
@@ -223,5 +255,75 @@ public class T {
         }
 
         return new int[]{leftBandwidth, rightBandwidth};
+    }
+    
+    public void applyGesture(int leftBandwidth, int rightBandwidth){
+        //early escape if need to refresh
+        if (cyclesToRefresh > 0) {
+            cyclesToRefresh--;
+            return;
+        }
+
+        int cyclesToRead = 5;
+        if (leftBandwidth > 4 || rightBandwidth > 4) {
+            Log.d("GESTURE CALLBACK", "Start of if statement");
+            //implement gesture logic
+            int difference = leftBandwidth - rightBandwidth;
+            int direction = (int) signum(difference);
+
+            //Log.d("GESTURE CALLBACK", "DIRECTION IS " + direction);
+            if (direction == 1) {
+                Log.d("DIRECTION", "POS");
+            } else if (direction == -1) {
+                Log.d("Direction", "NEG");
+            } else {
+                Log.d("DIrection", "none");
+            }
+
+            if (direction != 0 && direction != previousDirection) {
+                //scan a 4 frame window to wait for taps or double taps
+                Log.d("GESTURE CALLBACK", "previous direction is diff than current");
+                cyclesLeftToRead = cyclesToRead;
+                Log.d("GESTURE CALLBACK", "setting prev direction");
+                previousDirection = direction;
+                directionChanges++;
+            }
+        }
+
+        cyclesLeftToRead--;
+
+        if (cyclesLeftToRead == 0) {
+            Log.d("GESTURE CALLBACK", "No more cycles to read. finding appropriate listener");
+            if (directionChanges == 1) {
+                if (previousDirection == -1) {
+                    gestureListener.onPositive(leftBandwidth - rightBandwidth);
+                    Log.d("GESTURE CALLBACK", "positive:" + (leftBandwidth - rightBandwidth));
+                } else {
+                    gestureListener.onNegative(leftBandwidth - rightBandwidth);
+                    Log.d("GESTURE CALLBACK", "negative:" + (leftBandwidth - rightBandwidth));
+                }
+            } else if (directionChanges == 2) {
+                gestureListener.onTap();
+            } else {
+                gestureListener.onDoubleTap();
+            }
+            previousDirection = 0;
+            directionChanges = 0;
+            cyclesToRefresh = cyclesToRead;
+        } else {
+            gestureListener.onNothing();
+        }
+    }
+    
+    public static interface RawBWListener{
+        public void onBandWidth(int leftBandwidth, int rightBandwidth);
+    }
+    
+    public static interface GestureListener{
+        public void onPositive(int diff);
+        public void onNegative(int diff);
+        public void onTap();
+        public void onDoubleTap();
+        public void onNothing();
     }
 }
